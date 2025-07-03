@@ -1,5 +1,5 @@
+use bevy::prelude::*;
 use bevy::render::mesh::MeshAabb;
-use bevy::{prelude::*, sprite::Wireframe2dPlugin};
 use rand::Rng;
 
 enum GameState {
@@ -52,8 +52,6 @@ fn main() {
     let mut app = App::new();
 
     app.add_plugins(DefaultPlugins);
-
-    app.add_plugins(Wireframe2dPlugin::default());
 
     app.init_resource::<Game>();
 
