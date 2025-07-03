@@ -134,6 +134,24 @@ fn pipe_update(
 
     let mut max_width: f32 = 0.;
 
+    pipes.entities.retain(|pipe| {
+        let mut transform = *transforms.get_mut(*pipe).unwrap();
+        let pos = transform.translation; // (width, height, z-axis) z-axis will always be zero for 2D
+        if pos.x > max_width {
+            max_width = pos.x;
+        }
+        if pos.x < -size.x / 2. {
+            let mut commands = commands.entity(*pipe);
+            commands.despawn();
+            return false;
+        }
+        // Move the pipe across
+        transform.translation.x -= PIPE_MOVEMENT_SPEED * time.delta_secs();
+        *transforms.get_mut(*pipe).unwrap() = transform;
+
+        return true;
+    });
+
     let entities = &mut pipes.entities;
     let mut new_entities = vec![];
     for index in 0..entities.len() {
