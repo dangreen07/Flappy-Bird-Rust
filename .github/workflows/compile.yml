@@ -9,5 +9,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
         - uses: actions/checkout@v4
+        - name: Setup
+          run: apt install wayland
         - name: Build
           run: cargo build --verbose
