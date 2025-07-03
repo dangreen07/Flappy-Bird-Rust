@@ -10,6 +10,6 @@ jobs:
         steps:
         - uses: actions/checkout@v4
         - name: Setup
-          run: sudo apt install wayland -y
+          run: sudo apt-get install libwayland-client0 libwayland-dev -y
         - name: Build
           run: cargo build --verbose
