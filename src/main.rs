@@ -253,7 +253,7 @@ fn pipe_update(
 
 fn collision_detection(
     mut game: ResMut<Game>,
-    pipe_meshes: Query<(&mut Mesh2d, &GlobalTransform)>,
+    mesh_entities: Query<(&mut Mesh2d, &GlobalTransform)>,
     global_transforms: Query<&GlobalTransform>,
     meshes: Res<Assets<Mesh>>,
 ) {
@@ -262,7 +262,7 @@ fn collision_detection(
     // Pipe collision detection
     let pipes = game.pipes.entities.clone();
     for pipe in pipes {
-        let pipe_mesh = pipe_meshes.get(pipe).unwrap();
+        let pipe_mesh = mesh_entities.get(pipe).unwrap();
         let pipe_id = pipe_mesh.0.id();
         let mesh = meshes.get(pipe_id).unwrap().clone();
         let collided = has_collided(&game.player, player_transform, mesh, pipe_mesh.1);
@@ -272,6 +272,17 @@ fn collision_detection(
             println!("Collision detected!");
             return;
         }
+    }
+
+    // Floor collision detection
+    let floor = game.floor.unwrap();
+    let floor_mesh = mesh_entities.get(floor).unwrap();
+    let floor_id = floor_mesh.0.id();
+    let mesh = meshes.get(floor_id).unwrap().clone();
+    let collided = has_collided(&game.player, player_transform, mesh, floor_mesh.1);
+    if collided {
+        game.state = GameState::GameOver;
+        return;
     }
 }
 
