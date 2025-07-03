@@ -1,5 +1,11 @@
+use bevy::render::mesh::MeshAabb;
 use bevy::{prelude::*, sprite::Wireframe2dPlugin};
 use rand::Rng;
+
+enum GameState {
+    Playing,
+    GameOver,
+}
 
 #[derive(Default)]
 struct Player {
@@ -20,6 +26,7 @@ struct Game {
     player: Player,
     pipes: Pipes,
     floor: Option<Entity>,
+    state: GameState,
 }
 
 impl Default for Game {
@@ -28,6 +35,7 @@ impl Default for Game {
             player: Player::default(),
             pipes: Pipes::default(),
             floor: None,
+            state: GameState::Playing,
         }
     }
 }
@@ -50,19 +58,33 @@ fn main() {
 
     app.add_systems(Startup, (setup, setup_pipes, setup_floor));
 
-    app.add_systems(Update, (sprite_movement, pipe_update));
+    app.add_systems(
+        Update,
+        (sprite_movement, pipe_update, collision_detection).run_if(game_running),
+    );
 
     app.run();
+}
+
+fn game_running(game: Res<Game>) -> bool {
+    match game.state {
+        GameState::Playing => true,
+        GameState::GameOver => false,
+    }
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMut<Game>) {
     commands.spawn(Camera2d);
 
-    let mut sprite = Sprite::from_image(asset_server.load("Grumpy Flappy Bird\\frame-1.png"));
-
-    sprite.custom_size = Some(Vec2::new(75.0, 75.0));
+    let custom_size = Vec2::new(75.0, 75.0);
 
     let transform = Transform::from_xyz(0., 0., 0.);
+
+    let sprite = Sprite {
+        custom_size: Some(custom_size),
+        image: asset_server.load("Grumpy Flappy Bird\\frame-1.png"),
+        ..Default::default()
+    };
 
     let entity = commands.spawn((sprite, transform)).id();
 
@@ -212,4 +234,71 @@ fn pipe_update(
         game.pipes.entities.push(top_entity);
         game.pipes.entities.push(bottom_entity);
     }
+}
+
+fn collision_detection(
+    mut game: ResMut<Game>,
+    pipe_meshes: Query<(&mut Mesh2d, &GlobalTransform)>,
+    sprites: Query<(&mut Sprite, &mut Transform)>,
+    meshes: Res<Assets<Mesh>>,
+) {
+    let player_sprite = sprites.get(game.player.entity.unwrap()).unwrap();
+    let custom_size = player_sprite.0.custom_size.unwrap();
+    let transform = player_sprite.1;
+    let center = transform.translation.truncate();
+    let world_size = custom_size * transform.scale.truncate();
+    let rect = Rect::from_center_size(center, world_size);
+
+    // Pipe collision detection
+    let pipes = game.pipes.entities.clone();
+    for pipe in pipes {
+        let pipe_mesh = pipe_meshes.get(pipe).unwrap();
+        let pipe_id = pipe_mesh.0.id();
+        let mesh = meshes.get(pipe_id).unwrap().clone();
+        let collided = has_collided(rect, mesh, pipe_mesh.1);
+        if collided {
+            // Collision detected
+            game.state = GameState::GameOver;
+            println!("Collision detected!");
+            return;
+        }
+    }
+}
+
+fn has_collided(sprite_rect: Rect, mesh: Mesh, mesh_global_transform: &GlobalTransform) -> bool {
+    let local_aabb = mesh.compute_aabb().unwrap();
+
+    let min = local_aabb.min();
+    let max = local_aabb.max();
+    let local_corners = [
+        Vec3::new(min.x, min.y, min.z),
+        Vec3::new(min.x, min.y, max.z),
+        Vec3::new(min.x, max.y, min.z),
+        Vec3::new(min.x, max.y, max.z),
+        Vec3::new(max.x, min.y, min.z),
+        Vec3::new(max.x, min.y, max.z),
+        Vec3::new(max.x, max.y, min.z),
+        Vec3::new(max.x, max.y, max.z),
+    ];
+
+    let world_corners: Vec<Vec3> = local_corners
+        .iter()
+        .map(|corner| mesh_global_transform.compute_matrix() * corner.extend(1.0))
+        .map(|v4| v4.truncate())
+        .collect();
+
+    let mut ws_min = world_corners[0];
+    let mut ws_max = world_corners[0];
+    for &pt in &world_corners[1..] {
+        ws_min = ws_min.min(pt);
+        ws_max = ws_max.max(pt);
+    }
+
+    let rect = Rect::from_corners(ws_min.truncate(), ws_max.truncate());
+
+    let intersection = rect.intersect(sprite_rect);
+    if !intersection.is_empty() {
+        return true;
+    }
+    return false;
 }
