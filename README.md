@@ -59,6 +59,4 @@ The first run will take a little longer while Rust downloads dependencies and co
 ---
 
 ## Assets & Licensing
-The bird sprite frames are provided in `assets/Grumpy Flappy Bird`. They are included for educational use only.
-
-The rest of the code is licensed under the MIT License. See `LICENSE` for details.
+The bird sprite frames are provided in `assets/Grumpy Flappy Bird`. They were downloaded from [OpenGameArt](https://opengameart.org)
