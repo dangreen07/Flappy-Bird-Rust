@@ -12,6 +12,7 @@ struct Player {
     entity: Option<Entity>,
     velocity: Vec3,
     acceleration: Vec3,
+    collision_box: Rect,
 }
 
 #[derive(Default)]
@@ -41,7 +42,7 @@ impl Default for Game {
 }
 
 const PIPE_OFFSET: f32 = 300.;
-const PIPE_MOVEMENT_SPEED: f32 = 30.;
+const PIPE_MOVEMENT_SPEED: f32 = 50.;
 const PIPE_WIDTH: f32 = 75.;
 const PIPE_GAP: f32 = 150.;
 
@@ -76,7 +77,10 @@ fn game_running(game: Res<Game>) -> bool {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMut<Game>) {
     commands.spawn(Camera2d);
 
-    let custom_size = Vec2::new(75.0, 75.0);
+    let width = 75.;
+    let height = 75.;
+
+    let custom_size = Vec2::new(width, height);
 
     let transform = Transform::from_xyz(0., 0., 0.);
 
@@ -86,10 +90,21 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMu
         ..Default::default()
     };
 
+    let collision_width = 50.;
+    let collision_height = 50.;
+
+    let collision_box = Rect::new(
+        -collision_width / 2.,
+        -collision_height / 2.,
+        collision_width / 2.,
+        collision_height / 2.,
+    );
+
     let entity = commands.spawn((sprite, transform)).id();
 
     game.player.entity = Some(entity);
     game.player.acceleration = Vec3::new(0., -20., 0.); // Set gravity acceleration here
+    game.player.collision_box = collision_box;
 }
 
 fn setup_pipes(
@@ -239,15 +254,10 @@ fn pipe_update(
 fn collision_detection(
     mut game: ResMut<Game>,
     pipe_meshes: Query<(&mut Mesh2d, &GlobalTransform)>,
-    sprites: Query<(&mut Sprite, &mut Transform)>,
+    global_transforms: Query<&GlobalTransform>,
     meshes: Res<Assets<Mesh>>,
 ) {
-    let player_sprite = sprites.get(game.player.entity.unwrap()).unwrap();
-    let custom_size = player_sprite.0.custom_size.unwrap();
-    let transform = player_sprite.1;
-    let center = transform.translation.truncate();
-    let world_size = custom_size * transform.scale.truncate();
-    let rect = Rect::from_center_size(center, world_size);
+    let player_transform = global_transforms.get(game.player.entity.unwrap()).unwrap();
 
     // Pipe collision detection
     let pipes = game.pipes.entities.clone();
@@ -255,7 +265,7 @@ fn collision_detection(
         let pipe_mesh = pipe_meshes.get(pipe).unwrap();
         let pipe_id = pipe_mesh.0.id();
         let mesh = meshes.get(pipe_id).unwrap().clone();
-        let collided = has_collided(rect, mesh, pipe_mesh.1);
+        let collided = has_collided(&game.player, player_transform, mesh, pipe_mesh.1);
         if collided {
             // Collision detected
             game.state = GameState::GameOver;
@@ -265,7 +275,12 @@ fn collision_detection(
     }
 }
 
-fn has_collided(sprite_rect: Rect, mesh: Mesh, mesh_global_transform: &GlobalTransform) -> bool {
+fn has_collided(
+    player: &Player,
+    player_global_transform: &GlobalTransform,
+    mesh: Mesh,
+    mesh_global_transform: &GlobalTransform,
+) -> bool {
     let local_aabb = mesh.compute_aabb().unwrap();
 
     let min = local_aabb.min();
@@ -294,9 +309,19 @@ fn has_collided(sprite_rect: Rect, mesh: Mesh, mesh_global_transform: &GlobalTra
         ws_max = ws_max.max(pt);
     }
 
+    let global_2d_pos = Vec2::new(
+        player_global_transform.translation().x,
+        player_global_transform.translation().y,
+    );
+
+    let player_collision_box = Rect::from_corners(
+        player.collision_box.min + global_2d_pos,
+        player.collision_box.max + global_2d_pos,
+    );
+
     let rect = Rect::from_corners(ws_min.truncate(), ws_max.truncate());
 
-    let intersection = rect.intersect(sprite_rect);
+    let intersection = rect.intersect(player_collision_box);
     if !intersection.is_empty() {
         return true;
     }
