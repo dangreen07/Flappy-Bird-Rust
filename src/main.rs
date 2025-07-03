@@ -48,21 +48,14 @@ fn main() {
 
     app.init_resource::<Game>();
 
-    app.add_systems(Startup, setup);
+    app.add_systems(Startup, (setup, setup_pipes, setup_floor));
 
     app.add_systems(Update, (sprite_movement, pipe_update));
 
     app.run();
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut game: ResMut<Game>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    window: Query<&Window>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMut<Game>) {
     commands.spawn(Camera2d);
 
     let mut sprite = Sprite::from_image(asset_server.load("Grumpy Flappy Bird\\frame-1.png"));
@@ -75,8 +68,14 @@ fn setup(
 
     game.player.entity = Some(entity);
     game.player.acceleration = Vec3::new(0., -20., 0.); // Set gravity acceleration here
+}
 
-    // Initialize pipes
+fn setup_pipes(
+    mut game: ResMut<Game>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    window: Query<&Window>,
+) {
     let Ok(window) = window.single() else {
         return;
     };
@@ -90,10 +89,40 @@ fn setup(
     let material = MeshMaterial2d(material);
 
     let pipe = meshes.add(Rectangle::new(PIPE_WIDTH, height));
-    let mesh = Mesh2d(pipe);
+    let pipe = Mesh2d(pipe);
 
     game.pipes.material = Some(material);
-    game.pipes.mesh = Some(mesh);
+    game.pipes.mesh = Some(pipe);
+}
+
+fn setup_floor(
+    mut commands: Commands,
+    mut game: ResMut<Game>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    window: Query<&Window>,
+) {
+    let Ok(window) = window.single() else {
+        return;
+    };
+    let size = window.size();
+    let floor_color = Color::srgba(139. / 255., 69. / 255., 19. / 255., 1.);
+
+    let material = materials.add(floor_color);
+    let material = MeshMaterial2d(material);
+
+    let floor = meshes.add(Rectangle::new(size.x, 50.));
+    let floor = Mesh2d(floor);
+
+    let floor_entity = commands
+        .spawn((
+            floor,
+            material,
+            Transform::from_xyz(0., -size.y / 2. + 25., 0.5),
+        ))
+        .id();
+
+    game.floor = Some(floor_entity);
 }
 
 fn calculate_pipe_heights(height: f32, window_height: f32) -> (f32, f32) {
