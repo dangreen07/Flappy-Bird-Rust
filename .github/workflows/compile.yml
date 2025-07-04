@@ -10,6 +10,6 @@ jobs:
         steps:
         - uses: actions/checkout@v4
         - name: Setup
-          run: sudo apt-get install libwayland-client0 libwayland-dev libasound2-dev -y
+          run: sudo apt-get install -y libwayland-client0 libwayland-dev libasound2-dev pkg-config libusb-1.0-0-dev libftdi1-dev libudev-dev
         - name: Build
           run: cargo build --verbose
