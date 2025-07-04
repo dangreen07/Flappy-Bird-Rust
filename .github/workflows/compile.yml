@@ -30,7 +30,7 @@ jobs:
         - name: Package
           run: |
             mkdir -p package
-            cp target/x86_64-pc-windows-gnu/release/Flappy-Bird-Rust.exe package/
+            cp target/x86_64-pc-windows-gnu/release/flappy-bird-rust.exe package/
             cp -r assets package/
             cd package
             zip -r Flappy_Bird_Rust_windows_gnu.zip .
