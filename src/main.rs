@@ -1,3 +1,4 @@
+use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::render::mesh::MeshAabb;
 use rand::Rng;
@@ -58,7 +59,15 @@ const JUMP_FORCE: f32 = 5_000.;
 fn main() {
     let mut app = App::new();
 
-    app.add_plugins(DefaultPlugins);
+    let mut log_plugin = LogPlugin::default();
+
+    if cfg!(debug_assertions) {
+        log_plugin.level = Level::INFO;
+    } else {
+        log_plugin.level = Level::WARN;
+    }
+
+    app.add_plugins(DefaultPlugins.set(log_plugin));
 
     app.init_resource::<Game>();
 
@@ -247,7 +256,7 @@ fn pipe_update(
     if max_width < size.x / 2. - PIPE_OFFSET {
         // Create a new pipe
         let mut rng = rand::rng();
-        let random_number: f32 = rng.random_range(0.0..=1.0);
+        let random_number: f32 = rng.random_range(0.2..=0.8);
         let (top_pos, bottom_pos) = calculate_pipe_heights(random_number, size.y);
         let mesh = game.pipes.mesh.clone().unwrap();
         let material = game.pipes.material.clone().unwrap();
