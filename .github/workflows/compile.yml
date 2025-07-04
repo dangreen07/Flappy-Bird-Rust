@@ -37,5 +37,5 @@ jobs:
 
         - uses: actions/upload-artifact@v4
           with:
-            name: my_game_windows
-            path: Flappy_Bird_Rust_windows_gnu.zip
+            name: flappy_bird_windows
+            path: package/Flappy_Bird_Rust_windows_gnu.zip
