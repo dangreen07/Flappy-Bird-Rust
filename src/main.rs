@@ -7,6 +7,13 @@ enum GameState {
     GameOver,
 }
 
+#[derive(Component)]
+struct FrameAnimation {
+    frames: Vec<Handle<Image>>,
+    timer: Timer,
+    current: usize,
+}
+
 #[derive(Default)]
 struct Player {
     entity: Option<Entity>,
@@ -59,7 +66,13 @@ fn main() {
 
     app.add_systems(
         Update,
-        (sprite_movement, pipe_update, collision_detection).run_if(game_running),
+        (
+            sprite_movement,
+            pipe_update,
+            collision_detection,
+            animate_frames,
+        )
+            .run_if(game_running),
     );
 
     app.run();
@@ -82,10 +95,20 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMu
 
     let transform = Transform::from_xyz(0., 0., 0.);
 
-    let sprite = Sprite {
-        custom_size: Some(custom_size),
-        image: asset_server.load("Grumpy Flappy Bird\\frame-1.png"),
-        ..Default::default()
+    let mut frames = Vec::new();
+    for i in 1..=8 {
+        let path = format!("Grumpy Flappy Bird\\frame-{i}.png");
+        frames.push(asset_server.load(path));
+    }
+
+    let mut sprite = Sprite::from_image(frames[0].clone());
+
+    sprite.custom_size = Some(custom_size);
+
+    let animation = FrameAnimation {
+        frames,
+        timer: Timer::from_seconds(0.1, TimerMode::Repeating),
+        current: 0,
     };
 
     let collision_width = 50.;
@@ -98,7 +121,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMu
         collision_height / 2.,
     );
 
-    let entity = commands.spawn((sprite, transform)).id();
+    let entity = commands.spawn((sprite, transform, animation)).id();
 
     game.player.entity = Some(entity);
     game.player.acceleration = Vec3::new(0., -20., 0.); // Set gravity acceleration here
@@ -246,6 +269,16 @@ fn pipe_update(
 
         game.pipes.entities.push(top_entity);
         game.pipes.entities.push(bottom_entity);
+    }
+}
+
+fn animate_frames(time: Res<Time>, mut query: Query<(&mut FrameAnimation, &mut Sprite)>) {
+    for (mut anim, mut sprite) in &mut query {
+        anim.timer.tick(time.delta());
+        if anim.timer.just_finished() {
+            anim.current = (anim.current + 1) % anim.frames.len();
+            sprite.image = anim.frames[anim.current].clone();
+        }
     }
 }
 
